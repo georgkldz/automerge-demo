@@ -37,6 +37,7 @@ function updateDoc(newDoc: TodoDocument) {
     console.log(automerge.decodeChange(<Change>automerge.getLastLocalChange(newDoc)).ops)
     render(newDoc);
     save(newDoc)
+    sync()
 }
 
 function render(doc: TodoDocument) {
@@ -97,10 +98,12 @@ channel.onmessage = (ev) => {
 
 //dies geht automatisch mit updateDoc
 // aber zunächst mit einem Button
+/*
 let button = document.createElement("button")
 button.innerText = "Transmit changes"
 button.onclick = () => sync()
 document.body.appendChild(button)
+*/
 
 // Initiales Rendern
 render(doc);
