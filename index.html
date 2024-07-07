@@ -1,12 +1,23 @@
 <!doctype html>
 <html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TODO App mit Counter</title>
+</head>
 
 <body>
-<script type="module" src="/src/main.ts"></script>
-<h2>Die weltbeste TODO App </h2>
-<div></div>
-<form><input type="text" id="new-todo" /><input type="submit" value=">"/>
+<h2>Counter</h2>
+<button type="button" onclick="increment()" id="counter-button">Klick mich!</button>
+<p>Counter: <span id="counter-display">0</span></p>
+
+<h2>Die weltbeste TODO App</h2>
+<form>
+    <input type="text" id="new-todo" />
+    <input type="submit" value=">" />
 </form>
 <ul id="todo-list"></ul>
+
+<script type="module" src="/src/main.ts"></script>
 </body>
 </html>

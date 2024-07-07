@@ -1,12 +1,19 @@
 import './style.css'
 import { setupCounter } from './counter.js'
-import {Change, next as A} from '@automerge/automerge'
+import { Change, next as A } from '@automerge/automerge'
 import { BroadcastChannelNetworkAdapter } from '@automerge/automerge-repo-network-broadcastchannel';
 import { Automerge } from "@automerge/automerge/dist/wasm_types";
 import * as automerge from "@automerge/automerge"
 import localforage from "localforage";
 
-let doc = automerge.init<TodoDocument>()
+let counter = 0;
+
+function increment() {
+    counter+=1;
+    document.getElementById("counter-display").innerHTML=String(counter);
+}
+
+(window as any).increment = increment;
 
 interface TodoItem {
     text: string;
@@ -17,27 +24,29 @@ interface TodoDocument {
     items: TodoItem[];
 }
 
+let doc = automerge.init<TodoDocument>();
+
 function addItem(text: string) {
     let newDoc = automerge.change(doc, (doc: TodoDocument) => {
         if (!doc.items) doc.items = [];
         doc.items.push({ text, done: false });
-    })
-    updateDoc(newDoc)
+    });
+    updateDoc(newDoc);
 }
 
 function toggleItem(i: number) {
     let newDoc = automerge.change(doc, (doc: TodoDocument) => {
         doc.items[i].done = !doc.items[i].done;
-    })
-    updateDoc(newDoc)
+    });
+    updateDoc(newDoc);
 }
 
 function updateDoc(newDoc: TodoDocument) {
     doc = newDoc;
-    console.log(automerge.decodeChange(<Change>automerge.getLastLocalChange(newDoc)).ops)
+    console.log(automerge.decodeChange(<Change>automerge.getLastLocalChange(newDoc)).ops);
     render(newDoc);
-    save(newDoc)
-    sync()
+    save(newDoc);
+    sync();
 }
 
 function render(doc: TodoDocument) {
@@ -49,9 +58,9 @@ function render(doc: TodoDocument) {
         itemEl.style.textDecoration = item.done ? 'line-through' : '';
         itemEl.onclick = function () {
             toggleItem(index);
-        }
+        };
         list.appendChild(itemEl);
-    })
+    });
 }
 
 // Formular-Ereignislistener hinzufügen
@@ -67,43 +76,39 @@ form.addEventListener("submit", function (event) {
 });
 
 // Speichern und laden
+const docId = "my-todo-list"; //arbitrary name
 
-let docId = "my-todo-list" //arbitrary name
-let binary = await localforage.getItem(docId)
-if (binary) {
-    doc = automerge.load(binary)
-    render(doc)
+async function loadDocument() {
+    let binary = await localforage.getItem(docId);
+    if (binary) {
+        doc = automerge.load(binary);
+        render(doc);
+    }
 }
 
 function save(doc: TodoDocument) {
-    let binary = automerge.save(doc)
-    localforage.setItem(docId, binary)
+    let binary = automerge.save(doc);
+    localforage.setItem(docId, binary);
 }
 
 //Synchronisieren zwischen Tabs
-let channel = new BroadcastChannel(docId)
-let lastSync = doc
+let channel = new BroadcastChannel(docId);
+let lastSync = doc;
 
 function sync() {
-    let changes = automerge.getChanges(lastSync, doc)
-    channel.postMessage(changes)
-    lastSync = doc
+    let changes = automerge.getChanges(lastSync, doc);
+    channel.postMessage(changes);
+    lastSync = doc;
 }
 
 channel.onmessage = (ev) => {
-    let [newDoc, patch] = automerge.applyChanges(doc, ev.data)
-    doc = newDoc
-    render(newDoc)
+    let [newDoc, patch] = automerge.applyChanges(doc, ev.data);
+    doc = newDoc;
+    render(newDoc);
 }
 
-//dies geht automatisch mit updateDoc
-// aber zunächst mit einem Button
-/*
-let button = document.createElement("button")
-button.innerText = "Transmit changes"
-button.onclick = () => sync()
-document.body.appendChild(button)
-*/
 
-// Initiales Rendern
+// Initiales Rendern und Dokument laden
+loadDocument();
 render(doc);
+
