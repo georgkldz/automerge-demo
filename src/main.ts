@@ -1,114 +1,78 @@
-import './style.css'
-import { setupCounter } from './counter.js'
-import { Change, next as A } from '@automerge/automerge'
+import "./style.css"
+import { Counter } from '@automerge/automerge';
+import { DocHandle, Repo, isValidAutomergeUrl } from "@automerge/automerge-repo"
+import { IndexedDBStorageAdapter } from '@automerge/automerge-repo-storage-indexeddb';
 import { BroadcastChannelNetworkAdapter } from '@automerge/automerge-repo-network-broadcastchannel';
-import { Automerge } from "@automerge/automerge/dist/wasm_types";
-import * as automerge from "@automerge/automerge"
-import localforage from "localforage";
+import { next as A } from "@automerge/automerge";
 
-let counter = 0;
 
-function increment() {
-    counter+=1;
-    document.getElementById("counter-display").innerHTML=String(counter);
+// Definieren der Schnittstelle für das Dokument
+interface CounterDoc {
+    buttonClicks?: Counter;
 }
 
-(window as any).increment = increment;
+// Erstellen eines Repos mit dem IndexedDBStorageAdapter und BroadcastChannelNetworkAdapter
+const storageAdapter = new IndexedDBStorageAdapter();
+const networkAdapter = new BroadcastChannelNetworkAdapter();
 
-interface TodoItem {
-    text: string;
-    done: boolean;
-}
-
-interface TodoDocument {
-    items: TodoItem[];
-}
-
-let doc = automerge.init<TodoDocument>();
-
-function addItem(text: string) {
-    let newDoc = automerge.change(doc, (doc: TodoDocument) => {
-        if (!doc.items) doc.items = [];
-        doc.items.push({ text, done: false });
-    });
-    updateDoc(newDoc);
-}
-
-function toggleItem(i: number) {
-    let newDoc = automerge.change(doc, (doc: TodoDocument) => {
-        doc.items[i].done = !doc.items[i].done;
-    });
-    updateDoc(newDoc);
-}
-
-function updateDoc(newDoc: TodoDocument) {
-    doc = newDoc;
-    console.log(automerge.decodeChange(<Change>automerge.getLastLocalChange(newDoc)).ops);
-    render(newDoc);
-    save(newDoc);
-    sync();
-}
-
-function render(doc: TodoDocument) {
-    let list = document.querySelector("#todo-list") as HTMLUListElement;
-    list.innerHTML = ``;
-    doc.items && doc.items.forEach((item, index) => {
-        let itemEl = document.createElement('li');
-        itemEl.innerText = item.text;
-        itemEl.style.textDecoration = item.done ? 'line-through' : '';
-        itemEl.onclick = function () {
-            toggleItem(index);
-        };
-        list.appendChild(itemEl);
-    });
-}
-
-// Formular-Ereignislistener hinzufügen
-let form = document.querySelector("form") as HTMLFormElement;
-let input = document.querySelector("#new-todo") as HTMLInputElement;
-
-form.addEventListener("submit", function (event) {
-    event.preventDefault();
-    if (input.value.trim() !== "") {
-        addItem(input.value.trim());
-        input.value = "";
-    }
+const repo = new Repo({
+    storage: storageAdapter,
+    network: [networkAdapter],
 });
 
-// Speichern und laden
-const docId = "my-todo-list"; //arbitrary name
+// Initialisieren oder Laden des Dokuments
+const docUrl = window.location.hash.slice(1);
+let handle: DocHandle<CounterDoc>;
 
-async function loadDocument() {
-    let binary = await localforage.getItem(docId);
-    if (binary) {
-        doc = automerge.load(binary);
-        render(doc);
+if (docUrl && isValidAutomergeUrl(docUrl)) {
+    handle = repo.find<CounterDoc>(docUrl as any); // Cast to any to match the expected type
+} else {
+    handle = repo.create<CounterDoc>();
+    window.location.hash = handle.url;
+}
+
+// Funktion zum Aktualisieren des Displays
+function updateDisplay(counterValue: number) {
+    const counterDisplayElement = document.getElementById("counter-display");
+    if (counterDisplayElement) {
+        counterDisplayElement.innerHTML = String(counterValue);
     }
 }
 
-function save(doc: TodoDocument) {
-    let binary = automerge.save(doc);
-    localforage.setItem(docId, binary);
+// Initialisieren des Counters im Dokument
+async function initCounter() {
+    await handle.whenReady();
+
+    handle.change((doc) => {
+        if (!doc.buttonClicks) {
+            doc.buttonClicks = new Counter();
+        }
+    });
+
+    const doc = await handle.doc();
+    if (doc && doc.buttonClicks) {
+        updateDisplay(doc.buttonClicks.value);
+    }
+
+    handle.on('change', (d) => {
+        if (d.doc.buttonClicks) {
+            updateDisplay(d.doc.buttonClicks.value);
+        }
+    });
+
+    (window as any).increment = () => {
+        handle.change((doc) => {
+            if (doc.buttonClicks) {
+                doc.buttonClicks.increment();
+            }
+        });
+    };
 }
 
-//Synchronisieren zwischen Tabs
-let channel = new BroadcastChannel(docId);
-let lastSync = doc;
+initCounter().catch(console.error);
 
-function sync() {
-    let changes = automerge.getChanges(lastSync, doc);
-    channel.postMessage(changes);
-    lastSync = doc;
+// Funktion zur Überprüfung der Automerge-URL
+function isValidAutomergeUrl(url: string): boolean {
+    // Hier eine einfache Überprüfung hinzufügen, ob die URL eine gültige Automerge-URL ist
+    return url.startsWith('automerge:');
 }
-
-channel.onmessage = (ev) => {
-    let [newDoc, patch] = automerge.applyChanges(doc, ev.data);
-    doc = newDoc;
-    render(newDoc);
-}
-
-
-// Initiales Rendern und Dokument laden
-loadDocument();
-render(doc);
-
