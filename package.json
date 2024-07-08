@@ -15,6 +15,7 @@
   "dependencies": {
     "@automerge/automerge": "^2.2.4",
     "@automerge/automerge-repo-network-broadcastchannel": "^1.2.0",
+    "@automerge/automerge-repo-storage-indexeddb": "^1.2.0",
     "localforage": "^1.10.0",
     "vite-plugin-wasm": "^3.3.0"
   }

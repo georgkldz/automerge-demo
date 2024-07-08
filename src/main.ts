@@ -5,6 +5,14 @@ import { BroadcastChannelNetworkAdapter } from '@automerge/automerge-repo-networ
 import { Automerge } from "@automerge/automerge/dist/wasm_types";
 import * as automerge from "@automerge/automerge"
 import localforage from "localforage";
+import {Repo} from "@automerge/automerge-repo"
+import { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-indexeddb"
+
+const repo = new Repo({
+    storage: new IndexedDBStorageAdapter("automerge"),
+    network: [new BroadcastChannelNetworkAdapter()],
+})
+
 
 let doc = automerge.init<TodoDocument>()
 
