@@ -5,7 +5,7 @@ import { BroadcastChannelNetworkAdapter } from '@automerge/automerge-repo-networ
 import { Automerge } from "@automerge/automerge/dist/wasm_types";
 import * as automerge from "@automerge/automerge"
 import localforage from "localforage";
-import {Repo} from "@automerge/automerge-repo"
+import {Repo, isValidAutomergeUrl} from "@automerge/automerge-repo"
 import { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-indexeddb"
 
 const repo = new Repo({
@@ -13,6 +13,23 @@ const repo = new Repo({
     network: [new BroadcastChannelNetworkAdapter()],
 })
 
+// Beispiel-Dokument erstellen oder finden
+const docUrl = window.location.hash.slice(1);
+let handle;
+if (docUrl && isValidAutomergeUrl(docUrl)) {
+    handle = repo.find(docUrl);
+} else {
+    handle = repo.create<TodoDocument>();
+    window.location.hash = handle.url;
+}
+
+// Warten, bis das Handle verfügbar ist
+handle.whenReady().then(() => {
+    console.log('Document is ready:', handle.document);
+
+    // Ausgabe der URL des Handles
+    console.log('Document URL:', handle.url);
+});
 
 let doc = automerge.init<TodoDocument>()
 
