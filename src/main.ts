@@ -24,7 +24,7 @@ if (docUrl && isValidAutomergeUrl(docUrl)) {
 }
 
 // Warten, bis das Handle verfügbar ist
-handle.whenReady().then(() => {
+await handle.whenReady().then(() => {
     console.log('Document is ready:', handle.document);
 
     // Ausgabe der URL des Handles
