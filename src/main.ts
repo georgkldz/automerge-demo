@@ -27,15 +27,23 @@ const repo = new Repo({
     network: [networkAdapter],
 });
 
-// Initialisieren oder Laden des Dokuments
-const docUrl = window.location.hash.slice(1);
-let handle: DocHandle<CounterDoc & TodoDocument>;
+// Initialisieren oder Laden der Dokumente
+const [counterDocUrl, todoDocUrl] = window.location.hash.slice(1).split("&");
+let counterHandle: DocHandle<CounterDoc>;
+let todoHandle: DocHandle<TodoDocument>;
 
-if (docUrl && isValidAutomergeUrl(docUrl)) {
-    handle = repo.find<CounterDoc & TodoDocument>(docUrl as any); // Cast to any to match the expected type
+if (counterDocUrl && isValidAutomergeUrl(counterDocUrl)) {
+    counterHandle = repo.find<CounterDoc>(counterDocUrl as any); // Cast to any to match the expected type
 } else {
-    handle = repo.create<CounterDoc & TodoDocument>();
-    window.location.hash = handle.url;
+    counterHandle = repo.create<CounterDoc>();
+    window.location.hash = counterHandle.url + "&" + (todoDocUrl || "");
+}
+
+if (todoDocUrl && isValidAutomergeUrl(todoDocUrl)) {
+    todoHandle = repo.find<TodoDocument>(todoDocUrl as any); // Cast to any to match the expected type
+} else {
+    todoHandle = repo.create<TodoDocument>();
+    window.location.hash = (counterDocUrl || "") + "&" + todoHandle.url;
 }
 
 // Funktion zum Aktualisieren des Displays
@@ -48,27 +56,27 @@ function updateDisplay(counterValue: number) {
 
 // Initialisieren des Counters im Dokument
 async function initCounter() {
-    await handle.whenReady();
+    await counterHandle.whenReady();
 
-    handle.change((doc) => {
+    counterHandle.change((doc) => {
         if (!doc.buttonClicks) {
             doc.buttonClicks = new Counter();
         }
     });
 
-    const doc = await handle.doc();
+    const doc = await counterHandle.doc();
     if (doc && doc.buttonClicks) {
         updateDisplay(doc.buttonClicks.value);
     }
 
-    handle.on('change', (d) => {
+    counterHandle.on('change', (d) => {
         if (d.doc.buttonClicks) {
             updateDisplay(d.doc.buttonClicks.value);
         }
     });
 
     (window as any).increment = () => {
-        handle.change((doc) => {
+        counterHandle.change((doc) => {
             if (doc.buttonClicks) {
                 doc.buttonClicks.increment();
             }
@@ -90,7 +98,7 @@ function renderTodoList(doc: TodoDocument) {
         li.textContent = item.text;
         li.style.textDecoration = item.done ? 'line-through' : 'none';
         li.addEventListener("click", () => {
-            handle.change((doc) => {
+            todoHandle.change((doc) => {
                 if (doc.items && doc.items[index]) {
                     doc.items[index].done = !doc.items[index].done;
                 }
@@ -101,27 +109,26 @@ function renderTodoList(doc: TodoDocument) {
 }
 
 async function initTodoApp() {
-    await handle.whenReady();
+    await todoHandle.whenReady();
 
-    handle.change((doc) => {
+    todoHandle.change((doc) => {
         if (!doc.items) {
             doc.items = [];
         }
     });
 
-    const doc = await handle.doc() as TodoDocument;
-    renderTodoList(doc);
+    const doc = await todoHandle.doc();
+    renderTodoList(<TodoDocument>doc);
 
-    handle.on('change', (d) => {
-        const doc = d.doc as TodoDocument;
-        renderTodoList(doc);
+    todoHandle.on('change', (d) => {
+        renderTodoList(<TodoDocument>d.doc);
     });
 
     todoForm.addEventListener("submit", (e) => {
         e.preventDefault();
         const newTodoText = newTodoInput.value.trim();
         if (newTodoText) {
-            handle.change((doc) => {
+            todoHandle.change((doc) => {
                 if (doc.items) {
                     doc.items.push({ text: newTodoText, done: false });
                 }
@@ -132,3 +139,8 @@ async function initTodoApp() {
 }
 
 initTodoApp().catch(console.error);
+
+// Funktion zur Überprüfung der Automerge-URL
+function isValidAutomergeUrl(url: string): boolean {
+    return url.startsWith('automerge:');
+}
