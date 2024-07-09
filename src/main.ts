@@ -10,6 +10,13 @@ import { next as A } from "@automerge/automerge";
 interface CounterDoc {
     buttonClicks?: Counter;
 }
+interface TodoItem {
+    text: string;
+    done: boolean;
+}
+interface TodoDocument {
+    items: TodoItem[];
+}
 
 // Erstellen eines Repos mit dem IndexedDBStorageAdapter und BroadcastChannelNetworkAdapter
 const storageAdapter = new IndexedDBStorageAdapter();
@@ -30,6 +37,14 @@ if (docUrl && isValidAutomergeUrl(docUrl)) {
     handle = repo.create<CounterDoc>();
     window.location.hash = handle.url;
 }
+// Warten, bis das Handle verfügbar ist
+await handle.whenReady().then(() => {
+    console.log('Document is ready:', handle.doc);
+
+    // Ausgabe der URL des Handles
+    console.log('Document URL:', handle.url);
+});
+
 
 // Funktion zum Aktualisieren des Displays
 function updateDisplay(counterValue: number) {
@@ -71,8 +86,3 @@ async function initCounter() {
 
 initCounter().catch(console.error);
 
-// Funktion zur Überprüfung der Automerge-URL
-function isValidAutomergeUrl(url: string): boolean {
-    // Hier eine einfache Überprüfung hinzufügen, ob die URL eine gültige Automerge-URL ist
-    return url.startsWith('automerge:');
-}
